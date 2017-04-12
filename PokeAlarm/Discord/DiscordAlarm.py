@@ -130,6 +130,7 @@ class DiscordAlarm(Alarm):
     # Send Alert to Discord
     def send_alert(self, alert, info):
         log.debug("Attempting to send notification to Discord.")
+        log.debug(info)
         payload = {
             'username': replace(alert['username'], info)[:32],  # Username must be 32 characters or less
             'content': replace(alert['content'], info),
