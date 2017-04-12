@@ -50,7 +50,6 @@ class Manager(object):
         self.__pokemon_settings, self.__pokestop_settings, self.__gym_settings = {}, {}, {}
         self.__raid_settings, self.__egg_settings = {}, {}
         self.__pokemon_hist, self.__pokestop_hist, self.__gym_hist, self.__raid_hist = {}, {}, {}, {}
-        self.__gym_info = {}
         self.load_filter_file(get_path(filter_file))
 
         # Create the Geofences to filter with from given file
