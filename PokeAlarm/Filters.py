@@ -106,6 +106,19 @@ def load_pokestop_section(settings):
     return stop
 
 
+def load_raid_section(settings):
+    log.info("Setting up Raid Filters...")
+    raid = {
+        "enabled": bool(parse_boolean(settings.pop('enabled', None)) or False)
+    }
+
+    # load any pokemon filters
+    filters = load_pokemon_filters(settings)
+    raid['filters'] = filters
+
+    return raid
+
+
 def load_gym_section(settings):
     log.info("Setting Gym filters...")
     # Set the defaults for "True"
