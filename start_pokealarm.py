@@ -17,6 +17,7 @@ import pytz
 import Queue
 import json
 import os
+import signal
 import sys
 # 3rd Party Imports
 from flask import Flask, request, abort
@@ -25,6 +26,7 @@ from PokeAlarm import config
 from PokeAlarm.Manager import Manager
 from PokeAlarm.WebhookStructs import RocketMap
 from PokeAlarm.Utils import get_path, parse_unicode
+from PokeAlarm.Cache import Cache
 
 # Reinforce UTF-8 as default
 reload(sys)
@@ -38,6 +40,7 @@ log = logging.getLogger('Server')
 app = Flask(__name__)
 data_queue = Queue.Queue()
 managers = {}
+cache = Cache()
 
 
 @app.route('/', methods=['GET'])
@@ -90,6 +93,9 @@ def start_server():
 
     # Start Webhook Manager in a Thread
     spawn(manage_webhook_data, data_queue)
+
+    # make sure we stop properly
+    signal.signal(signal.SIGINT, signal_handler)
 
     # Start up Server
     log.info("PokeAlarm is listening for webhooks on: http://{}:{}".format(config['HOST'], config['PORT']))
@@ -174,6 +180,9 @@ def parse_settings(root_path):
                       "see https://en.wikipedia.org/wiki/List_of_tz_database_time_zones")
             sys.exit(1)
 
+    # Initialize the cache
+    cache.setup_geocache()
+
     # Build the managers
     for m_ct in range(args.manager_count):
         # This needs to be changed a few times... because
@@ -198,12 +207,16 @@ def parse_settings(root_path):
             managers[m.get_name()] = m
         else:
             log.critical("Names of Manager processes must be unique (regardless of capitalization)! Process will exit.")
-            sys.exit(1)
+            sys.exit(-1)
     log.info("Starting up the Managers")
     for m_name in managers:
         managers[m_name].start()
 
 
+def signal_handler(signal,frame):
+    print("CTRL-C catched, dumping pickles...")
+    cache.save_geocache()
+    sys.exit(1)
 
 ########################################################################################################################
 

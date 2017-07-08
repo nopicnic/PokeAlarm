@@ -7,10 +7,12 @@ import logging
 from math import radians, sin, cos, atan2, sqrt, degrees
 import os
 import sys
+import pickle
 import re
 # 3rd Party Imports
 # Local Imports
 from . import config
+
 
 log = logging.getLogger('Utils')
 
@@ -243,7 +245,7 @@ def get_applemaps_link(lat, lng):
 
 # Returns a static map url with <lat> and <lng> parameters for dynamic test
 def get_static_map_url(settings, api_key=None):  # TODO: optimize formatting
-    if not parse_boolean(settings.get('enabled', 'True')):
+    if not parse_boolean(settings.get('enabled', 'False')):
         return None
     width = settings.get('width', '250')
     height = settings.get('height', '125')

@@ -8,6 +8,7 @@ import traceback
 import os
 import re
 import sys
+import signal
 # 3rd Party Imports
 import gipc
 import googlemaps
@@ -17,6 +18,7 @@ from Filters import Geofence, load_pokemon_section, load_pokestop_section, load_
     load_raid_section
 from Utils import get_cardinal_dir, get_dist_as_str, get_earth_dist, get_path, get_time_as_str, \
     require_and_remove_key, parse_boolean, contains_arg
+from GracefulKiller import GracefulKiller
 log = logging.getLogger('Manager')
 
 
@@ -65,6 +67,8 @@ class Manager(object):
         self.__queue = multiprocessing.Queue()
         self.__process = None
 
+        self.__killer = GracefulKiller()
+
         log.info("----------- Manager '{}' successfully created.".format(self.__name))
 
     ############################################## CALLED BY MAIN PROCESS ##############################################
@@ -78,6 +82,8 @@ class Manager(object):
         return self.__name
 
     ####################################################################################################################
+
+
 
     ################################################## MANAGER LOADING  ################################################
     # Load in a new filters file
@@ -299,6 +305,11 @@ class Manager(object):
             except Exception as e:
                 log.error("Encountered error during processing: {}: {}".format(type(e).__name__, e))
                 log.debug("Stack trace: \n {}".format(traceback.format_exc()))
+
+            if self.__killer.kill_now:
+                break
+
+        log.info("Exited Manager gracefully")
 
     # Clean out the expired objects from histories (to prevent oversized sets)
     def clean_hist(self):
@@ -1035,6 +1046,7 @@ class Manager(object):
 
     ############################################## REQUIRES GOOGLE API KEY #############################################
 
+
     # Returns the LAT,LNG of a location given by either a name or coordinates
     def get_lat_lng_from_name(self, location_name):
         if location_name is None:
@@ -1043,6 +1055,7 @@ class Manager(object):
             prog = re.compile("^(-?\d+\.\d+)[,\s]\s*(-?\d+\.\d+?)$")
             res = prog.match(location_name)
             latitude, longitude = None, None
+
             if res:
                 latitude, longitude = float(res.group(1)), float(res.group(2))
             elif location_name:
@@ -1065,7 +1078,7 @@ class Manager(object):
     def reverse_location(self, lat, lng):
         # Set defaults in case something goes wrong
         details = {
-            'street_num': 'unkn', 'street': 'unknown', 'address': 'unknown', 'postal': 'unknown',
+            'street_num': '', 'street': 'unknown', 'address': 'unknown', 'postal': 'unknown',
             'neighborhood': 'unknown', 'sublocality': 'unknown', 'city': 'unknown',
             'county': 'unknown', 'state': 'unknown', 'country': 'country'
         }
@@ -1073,14 +1086,20 @@ class Manager(object):
             log.error("No Google Maps API key provided - unable to reverse geocode.")
             return details
         try:
+            cache_key = str(lat) + ',' + str(lng)
+
+            # Look in the geocache
+            if cache_key in self.__geocache:
+                return self.__geocache[cache_key]
+
             result = self.__gmaps_client.reverse_geocode((lat, lng))[0]
             loc = {}
             for item in result['address_components']:
                 for category in item['types']:
                     loc[category] = item['short_name']
-            details['street_num'] = loc.get('street_number', 'unkn')
-            details['street'] = loc.get('route', 'unkn')
-            details['address'] = "{} {}".format(details['street_num'], details['street'])
+            details['street_num'] = loc.get('street_number', '')
+            details['street'] = loc.get('route', '')
+            details['address'] = "{} {}".format(details['street'], details['street_num'])
             details['postal'] = loc.get('postal_code', 'unkn')
             details['neighborhood'] = loc.get('neighborhood', "unknown")
             details['sublocality'] = loc.get('sublocality', "unknown")
@@ -1088,6 +1107,9 @@ class Manager(object):
             details['county'] = loc.get('administrative_area_level_2', 'unknown')
             details['state'] = loc.get('administrative_area_level_1', 'unknown')
             details['country'] = loc.get('country', 'unknown')
+
+            # cache result in the pickle
+            self.__geocache[cache_key] = details
         except Exception as e:
             log.error("Encountered error while getting reverse location data ({}: {})".format(type(e).__name__, e))
             log.debug("Stack trace: \n {}".format(traceback.format_exc()))
