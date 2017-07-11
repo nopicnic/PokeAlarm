@@ -12,13 +12,15 @@ logging.basicConfig(format='%(asctime)s [%(processName)15.15s][%(name)10.10s][%(
 
 # Standard Library Imports
 import configargparse
-from gevent import wsgi, spawn
+from gevent import wsgi
+import gevent
 import pytz
 import Queue
 import json
 import os
 import signal
 import sys
+
 # 3rd Party Imports
 from flask import Flask, request, abort
 # Local Imports
@@ -40,8 +42,6 @@ log = logging.getLogger('Server')
 app = Flask(__name__)
 data_queue = Queue.Queue()
 managers = {}
-cache = Cache()
-
 
 @app.route('/', methods=['GET'])
 def index():
@@ -64,19 +64,22 @@ def accept_webhook():
     return "OK"  # request ok
 
 
-# Thread used to distribute the data into various processes (for PokemonGo-Map format)
+# Thread used to distribute incoming data into the waiting manager processes
 def manage_webhook_data(queue):
-    while True:
-        if queue.qsize() > 300:
-            log.warning("Queue length is at {}... this may be causing a delay in notifications.".format(queue.qsize()))
-        data = queue.get(block=True)
-        obj = RocketMap.make_object(data)
-        if obj is not None:
-            for name, mgr in managers.iteritems():
-                mgr.update(obj)
-                log.debug("Distributed to {}.".format(name))
-            log.debug("Finished distributing object with id {}".format(obj['id']))
-        queue.task_done()
+    try:
+        while True:
+            if queue.qsize() > 300:
+                log.warning("Queue length is at {}... this may be causing a delay in notifications.".format(queue.qsize()))
+            data = queue.get(block=True)
+            obj = RocketMap.make_object(data)
+            if obj is not None:
+                for name, mgr in managers.iteritems():
+                    mgr.update(obj)
+                    log.debug("Distributed to {}.".format(name))
+                log.debug("Finished distributing object with id {}".format(obj['id']))
+            queue.task_done()
+    except gevent.GreenletExit:
+        log.info("Webhook Manager exiting gracefully!")
 
 
 # Configure and run PokeAlarm
@@ -88,17 +91,22 @@ def start_server():
     logging.getLogger('connectionpool').setLevel(logging.WARNING)
     logging.getLogger('gipc').setLevel(logging.WARNING)
     logging.getLogger("urllib3").setLevel(logging.WARNING)
+    logging.getLogger('Cache').setLevel(logging.INFO)
 
     parse_settings(os.path.abspath(os.path.dirname(__file__)))
 
+    # gevent.signal(signal.SIGINT, gevent.kill)
+
     # Start Webhook Manager in a Thread
-    spawn(manage_webhook_data, data_queue)
+    global webhook_manager
+    webhook_manager = gevent.spawn(manage_webhook_data, data_queue)
 
     # make sure we stop properly
     signal.signal(signal.SIGINT, signal_handler)
 
     # Start up Server
     log.info("PokeAlarm is listening for webhooks on: http://{}:{}".format(config['HOST'], config['PORT']))
+    global server
     server = wsgi.WSGIServer((config['HOST'], config['PORT']), app, log=logging.getLogger('pyswgi'))
     server.serve_forever()
 
@@ -180,9 +188,6 @@ def parse_settings(root_path):
                       "see https://en.wikipedia.org/wiki/List_of_tz_database_time_zones")
             sys.exit(1)
 
-    # Initialize the cache
-    cache.setup_geocache()
-
     # Build the managers
     for m_ct in range(args.manager_count):
         # This needs to be changed a few times... because
@@ -214,8 +219,20 @@ def parse_settings(root_path):
 
 
 def signal_handler(signal,frame):
-    print("CTRL-C catched, dumping pickles...")
-    cache.save_geocache()
+    print("CTRL-C catched, exiting gracefully...")
+
+    # kill the webhook manager - hopefully killing the manager sub processes
+    try:
+        webhook_manager.kill()
+    except AssertionError:
+        log.warn("Webhook manager was being cranky")
+
+    # stop the server
+    server.stop(timeout=10)
+
+    for m_name in managers:
+        managers[m_name].joinProcess()
+
     sys.exit(1)
 
 ########################################################################################################################

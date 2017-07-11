@@ -4,21 +4,23 @@ import gevent
 import logging
 import json
 import multiprocessing
+import Queue
 import traceback
 import os
 import re
 import sys
-import signal
 # 3rd Party Imports
 import gipc
 import googlemaps
 # Local Imports
 from . import config
+from Cache import Cache
 from Filters import Geofence, load_pokemon_section, load_pokestop_section, load_gym_section, load_egg_section, \
     load_raid_section
 from Utils import get_cardinal_dir, get_dist_as_str, get_earth_dist, get_path, get_time_as_str, \
     require_and_remove_key, parse_boolean, contains_arg
 from GracefulKiller import GracefulKiller
+
 log = logging.getLogger('Manager')
 
 
@@ -29,6 +31,9 @@ class Manager(object):
         self.__name = str(name).lower()
         log.info("----------- Manager '{}' is being created.".format(self.__name))
         self.__debug = debug
+
+        self.__cache = None
+        self.__cache_gyms = False
 
         # Get the Google Maps API
         self.__google_key = google_key
@@ -75,6 +80,7 @@ class Manager(object):
 
     # Update the object into the queue
     def update(self, obj):
+        log.info("Adding to Q")
         self.__queue.put(obj)
 
     # Get the name of this Manager
@@ -114,6 +120,10 @@ class Manager(object):
             # Load in the Raid Section
             self.__raid_settings = load_raid_section(
                 require_and_remove_key('raids', filters, "Filters file."))
+
+            # If raids are enabled, make sure we enable caching of gyms for gym names etc
+            if self.__raid_settings['enabled'] is True:
+                self.__cache_gyms = True
 
             return
 
@@ -255,6 +265,12 @@ class Manager(object):
     def start(self):
         self.__process = gipc.start_process(target=self.run, args=(), name=self.__name)
 
+    def joinProcess(self):
+        try:
+            self.__process.join()
+        except:
+            log.error("Stopping manager {} failed".format(self.__name))
+
     def setup_in_process(self):
         # Update config
         config['TIMEZONE'] = self.__timezone
@@ -269,7 +285,10 @@ class Manager(object):
         if config['DEBUG'] is True:
             logging.getLogger().setLevel(logging.DEBUG)
 
-        # Conect the alarms and send the start up message
+        self.__cache = Cache(self.__name)
+        self.__cache.load()
+
+        # Connect the alarms and send the start up message
         for alarm in self.__alarms:
             alarm.connect()
             alarm.startup_message()
@@ -280,36 +299,46 @@ class Manager(object):
         last_clean = datetime.utcnow()
         while True:  # Run forever and ever
             # Get next object to process
-            obj = self.__queue.get(block=True)
-            # Clean out visited every 3 minutes
-            if datetime.utcnow() - last_clean > timedelta(minutes=3):
-                log.debug("Cleaning history...")
-                self.clean_hist()
-                last_clean = datetime.utcnow()
             try:
-                kind = obj['type']
-                log.debug("Processing object {} with id {}".format(obj['type'], obj['id']))
-                if kind == "pokemon":
-                    self.process_pokemon(obj)
-                elif kind == "pokestop":
-                    self.process_pokestop(obj)
-                elif kind == "gym":
-                    self.process_gym(obj)
-                elif kind == 'egg':
+                obj = self.__queue.get(block=True, timeout=1000)
+
+                # Clean out visited every 3 minutes
+                if datetime.utcnow() - last_clean > timedelta(minutes=3):
+                    log.debug("Cleaning history...")
+                    self.clean_hist()
+                    last_clean = datetime.utcnow()
+                try:
+                    kind = obj['type']
+                    log.debug("Processing object {} with id {}".format(obj['type'], obj['id']))
+                    if kind == "pokemon":
+                        self.process_pokemon(obj)
+                    elif kind == "pokestop":
+                        self.process_pokestop(obj)
+                    elif kind == "gym":
+                        self.process_gym(obj)
+                    elif kind == 'egg':
                     self.process_egg(obj)
                 elif kind == "raid":
-                    self.process_raid(obj)
-                else:
-                    log.error("!!! Manager does not support {} objects!".format(kind))
-                log.debug("Finished processing object {} with id {}".format(obj['type'], obj['id']))
-            except Exception as e:
-                log.error("Encountered error during processing: {}: {}".format(type(e).__name__, e))
-                log.debug("Stack trace: \n {}".format(traceback.format_exc()))
+                        self.process_raid(obj)
+                    else:
+                        log.error("!!! Manager does not support {} objects!".format(kind))
+                    log.debug("Finished processing object {} with id {}".format(obj['type'], obj['id']))
+                except Exception as e:
+                    log.error("Encountered error during processing: {}: {}".format(type(e).__name__, e))
+                    log.debug("Stack trace: \n {}".format(traceback.format_exc()))
+            except Queue.Empty:
+                log.debug("Queue is empty, check if we are stopping")
+            except KeyboardInterrupt:
+                log.info("Keyboard interrupt, shutting down")
+                break
 
             if self.__killer.kill_now:
                 break
 
-        log.info("Exited Manager gracefully")
+            gevent.sleep(0)
+
+        self.__cache.save()
+        log.info("Exited manager {}".format(self.__name))
 
     # Clean out the expired objects from histories (to prevent oversized sets)
     def clean_hist(self):
@@ -690,13 +719,10 @@ class Manager(object):
     def process_gym(self, gym):
         gym_id = gym['id']
 
-        # Update Gym details (if they exist)
-        if gym_id not in self.__gym_info or gym['name'] != 'unknown':
-            self.__gym_info[gym_id] = {
-                "name": gym['name'],
-                "description": gym['description'],
-                "url": gym['url']
-            }
+
+            # Update Gym details (if they exist)
+            if  self.__cache.in_gym_cache(gym['id']) is False or gym['name'] != 'unknown':
+                self.__cache.put_gym( gym['id'], gym)
 
         if self.__gym_settings['enabled'] is False:
             log.debug("Gym ignored: notifications are disabled.")
@@ -767,17 +793,14 @@ class Manager(object):
             log.info("Gym rejected: not inside geofence(s)")
             return
 
-        # Check if in geofences
-        if len(self.__geofences) > 0:
-            inside = False
-            for gf in self.__geofences:
-                inside |= gf.contains(lat, lng)
-            if inside is False:
-                if self.__quiet is False:
-                    log.info("Gym update ignored: located outside geofences.")
-                return
+        if self.__cache.in_gym_cache(gym_id):
+            gym_info = self.__cache.get_gym(gym_id)
         else:
-            log.debug("Gym inside geofences was not checked because no geofences were set.")
+            gym_info = {
+                'name': 'Unknown Gym',
+                'description': '',
+                'url': ''
+            }
 
         gym.update({
             "gym_name": self.__gym_info.get(gym_id, {}).get('name', 'unknown'),
@@ -951,17 +974,27 @@ class Manager(object):
             'charge_id': charge_id
         }
 
-        filters = self.__raid_settings['filters'][pkmn_id]
-        passed = self.check_pokemon_filter(filters, raid_pkmn, dist)
-        # If we didn't pass any filters
-        if not passed:
-            log.debug("Raid {} did not pass pokemon check".format(gym_id))
-            return
+            filters = self.__raid_settings['filters'][pkmn_id]
+            passed = self.check_pokemon_filter(filters, raid_pkmn, dist)
+            # If we didn't pass any filters
+            if not passed:
+                log.debug("Raid {} did not pass pokemon check".format(gym_id))
+                return
 
         self.add_optional_travel_arguments(raid)
 
         if self.__quiet is False:
             log.info("Raid ({}) notification has been triggered!".format(gym_id))
+
+        # gym info
+        if self.__cache.in_gym_cache(id_):
+            gym_info = self.__cache.get_gym(id_)
+        else:
+            gym_info = {
+                'name': 'Unkown Gym',
+                'description': '',
+                'url': ''
+            }
 
         time_str = get_time_as_str(raid['raid_end'], self.__timezone)
         start_time_str = get_time_as_str(raid['raid_begin'], self.__timezone)
@@ -980,20 +1013,24 @@ class Manager(object):
             "dist": get_dist_as_str(dist),
             'dir': get_cardinal_dir([lat, lng], self.__latlng),
             'quick_move': self.__move_name.get(quick_id, 'unknown'),
-            'charge_move': self.__move_name.get(charge_id, 'unknown')
+            'charge_move': self.__move_name.get(charge_id, 'unknown'),
+            'gym_name': gym_info['name'],
+            'gym_description': gym_info['description'],
+            'gym_url': gym_info['url']
         })
 
         threads = []
         # Spawn notifications in threads so they can work in background
         for alarm in self.__alarms:
-            threads.append(gevent.spawn(alarm.raid_alert, raid))
+
+                threads.append(gevent.spawn(alarm.raid_alert, raid))
 
             gevent.sleep(0)  # explict context yield
 
         for thread in threads:
             thread.join()
 
-    # Check to see if a notification is within the given range
+    # Check to see if a notification is within the given range, return the first match
     def check_geofences(self, name, lat, lng):
         for gf in self.__geofences:
             if gf.contains(lat, lng):
@@ -1089,8 +1126,9 @@ class Manager(object):
             cache_key = str(lat) + ',' + str(lng)
 
             # Look in the geocache
-            if cache_key in self.__geocache:
-                return self.__geocache[cache_key]
+            if self.__cache.in_adr_cache(cache_key):
+                log.info("CACHE MATCH - geocache: {}".format(cache_key))
+                return self.__cache.get_adr(cache_key)
 
             result = self.__gmaps_client.reverse_geocode((lat, lng))[0]
             loc = {}
@@ -1099,7 +1137,8 @@ class Manager(object):
                     loc[category] = item['short_name']
             details['street_num'] = loc.get('street_number', '')
             details['street'] = loc.get('route', '')
-            details['address'] = "{} {}".format(details['street'], details['street_num'])
+            details['address_eu'] = "{} {}".format(details['street'], details['street_num'])  # EU use Street 123
+            details['address'] = "{} {}".format(details['street_num'], details['street'])     # US use 123 Street
             details['postal'] = loc.get('postal_code', 'unkn')
             details['neighborhood'] = loc.get('neighborhood', "unknown")
             details['sublocality'] = loc.get('sublocality', "unknown")
@@ -1108,8 +1147,9 @@ class Manager(object):
             details['state'] = loc.get('administrative_area_level_1', 'unknown')
             details['country'] = loc.get('country', 'unknown')
 
-            # cache result in the pickle
-            self.__geocache[cache_key] = details
+            # cache result
+            self.__cache.put_adr(cache_key, details)
+            log.debug("Saved Address in geocache: {} - {}".format(cache_key, details['address']))
         except Exception as e:
             log.error("Encountered error while getting reverse location data ({}: {})".format(type(e).__name__, e))
             log.debug("Stack trace: \n {}".format(traceback.format_exc()))
