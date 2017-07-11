@@ -1,9 +1,9 @@
 import pickle
 import os.path
 import logging
+import csv
 
 log = logging.getLogger('Cache')
-
 
 # Cache for reverse geocode lookup
 class Cache(object):
@@ -12,8 +12,51 @@ class Cache(object):
         self.adr_cache = {}
         self.gym_cache = {}
         self.__name = name
-        self.__pkl_file_adr = 'cached_{}_adr.pkl'.format(self.__name)
-        self.__pkl_file_gym = 'cached_{}_gym.pkl'.format(self.__name)
+        self.__pkl_file_adr = 'cached_{}_adr.pkl'.format(name)
+        self.__pkl_file_gym = 'cached_{}_gym.pkl'.format(name)
+
+    def import_gym_csv(self, csv_filename):
+        gyms = self.load_pickle(self.__pkl_file_gym)
+
+        # Default column indexes in case we can't deduce from the header row
+        gym_id_idx = 0
+        gym_name_idx = 1
+        gym_descr_idx = 2
+        gym_url_idx = 3
+
+        with open(csv_filename, 'rb') as csv_file:
+            dialect = csv.Sniffer().sniff(csv_file.read(), delimiters=';,')
+            csv_file.seek(0)
+            reader = csv.reader(csv_file,dialect)
+
+            for row_idx, row in enumerate(reader):
+                if row_idx == 0:
+                    # first row is header - lets find out what column is what
+                    for column, header in enumerate(row):
+                        if header == 'gym_id' or header == 'id':
+                            gym_id_idx = column
+                        elif header == 'name':
+                            gym_name_idx = column
+                        elif header == 'detail':
+                            gym_descr_idx = column
+                        elif header == 'url':
+                            gym_url_idx = column
+                else:
+                    print row
+                    gym = {
+                        'id': row[gym_id_idx],
+                        'name': row[gym_name_idx],
+                        'description': row[gym_descr_idx],
+                        'url': row[gym_url_idx]
+                    }
+                    gyms[row[gym_id_idx] ] = gym
+
+        if len(gyms) == 0:
+            log.error("There was no gyms imported!!")
+            return
+
+        # Save imported gyms
+        self.save_pickle(gyms,self.__pkl_file_gym)
 
     def load(self):
         self.adr_cache = self.load_pickle(self.__pkl_file_adr)
