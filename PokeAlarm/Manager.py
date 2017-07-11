@@ -234,10 +234,10 @@ class Manager(object):
         log.debug("Stack trace: \n {}".format(traceback.format_exc()))
         sys.exit(1)
 
-    # Returns true if string contains an argument that requires
+    # Returns true if string contains an argument that requires lookup from google api
     def set_optional_args(self, line):
         # Reverse Location
-        args = {'street', 'street_num', 'address', 'postal',
+        args = {'street', 'street_num', 'address', 'address_eu', 'postal',
                 'neighborhood', 'sublocality', 'city', 'county', 'state', 'country'}
         self.__api_req['REVERSE_LOCATION'] = self.__api_req['REVERSE_LOCATION'] or contains_arg(line, args)
         log.debug("REVERSE_LOCATION set to %s" % self.__api_req['REVERSE_LOCATION'])
