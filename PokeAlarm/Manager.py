@@ -792,6 +792,7 @@ class Manager(object):
             log.info("Gym rejected: not inside geofence(s)")
             return
 
+        # Check if gym info is available in the cache
         if self.__cache.in_gym_cache(gym_id):
             gym_info = self.__cache.get_gym(gym_id)
         else:
