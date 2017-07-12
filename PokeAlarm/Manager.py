@@ -936,6 +936,11 @@ class Manager(object):
                 log.info("Raid {} ignored. Only {} seconds left.".format(gym_id, seconds_left))
             return
 
+        # don't alert about expired raids
+        if datetime.utcnow() > raid_end:
+            log.debug("Raid {} has expired, shame on whoever sent this old stuff")
+            return
+
         lat, lng = raid['lat'], raid['lng']
         dist = get_earth_dist([lat, lng], self.__latlng)
 
