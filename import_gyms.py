@@ -17,7 +17,7 @@ select 'gym_id','name','description','url'
 UNION ALL
 select TO_BASE64(gym_id) as gym_id,name,trim(TRAILING '\n' FROM description) as description,url FROM gymdetails
 INTO outfile 'exported_gyms.csv'
-FIELDS TERMINATED BY ';' LINES TERMINATED BY '\n';
+FIELDS TERMINATED BY ';' ENCLOSED BY '\'' LINES TERMINATED BY '\n';
 
 Step 3. Import the gym info into PokeAlarm
         Copy your new CSV file (exported_gyms.csv unless you changed the name in the last step) into the PokeAlarm 

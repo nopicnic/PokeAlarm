@@ -5,6 +5,13 @@ import csv
 
 log = logging.getLogger('Cache')
 
+# TODO move to Util
+# Read CSV as unicode so we support Chinese characters and stuff
+def unicode_csv_reader(utf8_data, dialect=csv.excel, **kwargs):
+    csv_reader = csv.reader(utf8_data, dialect=dialect, **kwargs)
+    for row in csv_reader:
+        yield [unicode(cell, 'utf-8') for cell in row]
+
 # Cache for reverse geocode lookup
 class Cache(object):
 
@@ -14,6 +21,7 @@ class Cache(object):
         self.__name = name
         self.__pkl_file_adr = 'cached_{}_adr.pkl'.format(name)
         self.__pkl_file_gym = 'cached_{}_gym.pkl'.format(name)
+
 
     def import_gym_csv(self, csv_filename):
         log.info("Importing {}".format(csv_filename))
@@ -29,7 +37,7 @@ class Cache(object):
             with open(csv_filename, 'rb') as csv_file:
                 dialect = csv.Sniffer().sniff(csv_file.read(), delimiters=';,')
                 csv_file.seek(0)
-                reader = csv.reader(csv_file,dialect)
+                reader = unicode_csv_reader(csv_file,dialect)
 
                 for row_idx, row in enumerate(reader):
                     if row_idx == 0:
@@ -53,7 +61,7 @@ class Cache(object):
                         }
                         gyms[row[gym_id_idx] ] = gym
         except:
-            log.error("Something went wrong, your CSV is probably in the wrong format!")
+            log.error("Something went wrong, your CSV is being troublesome!")
             return
 
         if len(gyms) == 0:
