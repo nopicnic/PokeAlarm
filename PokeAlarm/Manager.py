@@ -80,7 +80,6 @@ class Manager(object):
 
     # Update the object into the queue
     def update(self, obj):
-        log.info("Adding to Q")
         self.__queue.put(obj)
 
     # Get the name of this Manager
