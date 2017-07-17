@@ -1120,7 +1120,7 @@ class Manager(object):
     def reverse_location(self, lat, lng):
         # Set defaults in case something goes wrong
         details = {
-            'street_num': '', 'street': 'unknown', 'address': 'unknown', 'postal': 'unknown',
+            'street_num': '', 'street': 'unknown', 'address': 'unknown', 'address_eu': 'unknown', 'postal': 'unknown',
             'neighborhood': 'unknown', 'sublocality': 'unknown', 'city': 'unknown',
             'county': 'unknown', 'state': 'unknown', 'country': 'country'
         }
