@@ -1062,7 +1062,8 @@ class Manager(object):
         if self.__api_req['DRIVE_DIST']:
             info.update(**self.get_driving_data(lat, lng))
 
-    def add_gym_details(self, info,gym_id):
+    # Add gym details to an info object
+    def add_gym_details(self, info, gym_id):
         if gym_id in self.__gym_info:
             info.update( {
                 "gym_name": self.__gym_info[gym_id]['name'],
