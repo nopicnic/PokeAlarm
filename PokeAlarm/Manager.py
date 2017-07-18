@@ -717,6 +717,7 @@ class Manager(object):
 
     def process_gym(self, gym):
         gym_id = gym['id']
+        gym_id = gym['id']
 
 
             # Update Gym details (if they exist)
@@ -897,6 +898,8 @@ class Manager(object):
             'dir': get_cardinal_dir([lat, lng], self.__latlng)
         })
 
+        self.add_gym_details(egg, id_)
+
         threads = []
         # Spawn notifications in threads so they can work in background
         for alarm in self.__alarms:
@@ -1024,6 +1027,8 @@ class Manager(object):
             'gym_url': gym_info['url']
         })
 
+        self.add_gym_details(raid, id_)
+
         threads = []
         # Spawn notifications in threads so they can work in background
         for alarm in self.__alarms:
@@ -1056,6 +1061,14 @@ class Manager(object):
             info.update(**self.get_biking_data(lat, lng))
         if self.__api_req['DRIVE_DIST']:
             info.update(**self.get_driving_data(lat, lng))
+
+    def add_gym_details(self, info,gym_id):
+        if gym_id in self.__gym_info:
+            info.update( {
+                "gym_name": self.__gym_info[gym_id]['name'],
+                "gym_description": self.__gym_info[gym_id]['description'],
+                "gym_url": self.__gym_info[gym_id]['url']
+            })
 
     ####################################################################################################################
 
