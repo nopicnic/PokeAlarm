@@ -292,7 +292,9 @@
     "eggs":{
         "enabled":"True",
         "min_level": "1",
-        "max_level": "5"
+        "max_level": "5",
+        "min_dist":"0",
+        "max_dist":"inf"
     },
     "raids":{
         "enabled":"True",

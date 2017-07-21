@@ -830,6 +830,16 @@ class Manager(object):
         lat, lng = egg['lat'], egg['lng']
         dist = get_earth_dist([lat, lng], self.__latlng)
 
+        # Check the given distance
+        if dist != 'unkn':
+            if self.__egg_settings['min_dist'] > dist or dist > self.__egg_settings['max_dist']:
+                if self.__quiet is False:
+                    log.info("{} rejected: distance ({:.2f}) was not in range {:.2f} to {:.2f}".format(
+                        id_, dist, self.__egg_settings['min_dist'], self.__egg_settings['max_dist']))
+                return
+        else:
+            log.debug("Filter dist was not checked because the manager has no location set.")
+
         # Check if raid is in geofences
         egg['geofence'] = self.check_geofences('Raid', lat, lng)
         if len(self.__geofences) > 0 and egg['geofence'] == 'unknown':
