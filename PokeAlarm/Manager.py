@@ -316,8 +316,8 @@ class Manager(object):
                     elif kind == "gym":
                         self.process_gym(obj)
                     elif kind == 'egg':
-                    self.process_egg(obj)
-                elif kind == "raid":
+                        self.process_egg(obj)
+                    elif kind == "raid":
                         self.process_raid(obj)
                     else:
                         log.error("!!! Manager does not support {} objects!".format(kind))
@@ -797,9 +797,9 @@ class Manager(object):
         gym_info = self.get_gym_details(gym_id)
 
         gym.update({
-            "gym_name": self.__gym_info.get(gym_id, {}).get('name', 'unknown'),
-            "gym_description": self.__gym_info.get(gym_id, {}).get('description', 'unknown'),
-            "gym_url": self.__gym_info.get(gym_id, {}).get('url', 'https://raw.githubusercontent.com/kvangent/PokeAlarm/master/icons/gym_0.png'),
+            "gym_name": self.__gym_info.get(gym_id, {}).get('name'),
+            "gym_description": self.__gym_info.get(gym_id, {}).get('description'),
+            "gym_url": self.__gym_info.get(gym_id, {}).get('url'),
             "dist": get_dist_as_str(dist),
             'dir': get_cardinal_dir([lat, lng], self.__latlng),
             'new_team': cur_team,
@@ -876,11 +876,12 @@ class Manager(object):
 
         time_str = get_time_as_str(egg['raid_end'], self.__timezone)
         start_time_str = get_time_as_str(egg['raid_begin'], self.__timezone)
+        gym_info = self.get_gym_details(gym_id)
 
         egg.update({
-            "gym_name": self.__gym_info.get(gym_id, {}).get('name', 'unknown'),
-            "gym_description": self.__gym_info.get(gym_id, {}).get('description', 'unknown'),
-            "gym_url": self.__gym_info.get(gym_id, {}).get('url', 'https://raw.githubusercontent.com/kvangent/PokeAlarm/master/icons/gym_0.png'),
+            "gym_name": self.__gym_info.get(gym_id, {}).get('name'),
+            "gym_description": self.__gym_info.get(gym_id, {}).get('description'),
+            "gym_url": self.__gym_info.get(gym_id, {}).get('url'),
             'time_left': time_str[0],
             '12h_time': time_str[1],
             '24h_time': time_str[2],
@@ -890,8 +891,6 @@ class Manager(object):
             "dist": get_dist_as_str(dist),
             'dir': get_cardinal_dir([lat, lng], self.__latlng)
         })
-
-        self.add_gym_details(egg, id_)
 
         threads = []
         # Spawn notifications in threads so they can work in background
@@ -975,36 +974,27 @@ class Manager(object):
             'charge_id': charge_id
         }
 
-            filters = self.__raid_settings['filters'][pkmn_id]
-            passed = self.check_pokemon_filter(filters, raid_pkmn, dist)
-            # If we didn't pass any filters
-            if not passed:
-                log.debug("Raid {} did not pass pokemon check".format(gym_id))
-                return
+        filters = self.__raid_settings['filters'][pkmn_id]
+        passed = self.check_pokemon_filter(filters, raid_pkmn, dist)
+        # If we didn't pass any filters
+        if not passed:
+            log.debug("Raid {} did not pass pokemon check".format(gym_id))
+            return
 
         self.add_optional_travel_arguments(raid)
 
         if self.__quiet is False:
             log.info("Raid ({}) notification has been triggered!".format(gym_id))
 
-        # gym info
-        if self.__cache.in_gym_cache(id_):
-            gym_info = self.__cache.get_gym(id_)
-        else:
-            gym_info = {
-                'name': 'Unkown Gym',
-                'description': '',
-                'url': ''
-            }
-
         time_str = get_time_as_str(raid['raid_end'], self.__timezone)
         start_time_str = get_time_as_str(raid['raid_begin'], self.__timezone)
+        gym_info = self.get_gym_details(gym_id)
 
         raid.update({
             'pkmn': name,
-            "gym_name": self.__gym_info.get(gym_id, {}).get('name', 'unknown'),
-            "gym_description": self.__gym_info.get(gym_id, {}).get('description', 'unknown'),
-            "gym_url": self.__gym_info.get(gym_id, {}).get('url', 'https://raw.githubusercontent.com/kvangent/PokeAlarm/master/icons/gym_0.png'),
+            "gym_name": self.__gym_info.get(gym_id, {}).get('name'),
+            "gym_description": self.__gym_info.get(gym_id, {}).get('description'),
+            "gym_url": self.__gym_info.get(gym_id, {}).get('url'),
             'time_left': time_str[0],
             '12h_time': time_str[1],
             '24h_time': time_str[2],
@@ -1014,19 +1004,13 @@ class Manager(object):
             "dist": get_dist_as_str(dist),
             'dir': get_cardinal_dir([lat, lng], self.__latlng),
             'quick_move': self.__move_name.get(quick_id, 'unknown'),
-            'charge_move': self.__move_name.get(charge_id, 'unknown'),
-            'gym_name': gym_info['name'],
-            'gym_description': gym_info['description'],
-            'gym_url': gym_info['url']
+            'charge_move': self.__move_name.get(charge_id, 'unknown')
         })
-
-        self.add_gym_details(raid, id_)
 
         threads = []
         # Spawn notifications in threads so they can work in background
         for alarm in self.__alarms:
-
-                threads.append(gevent.spawn(alarm.raid_alert, raid))
+            threads.append(gevent.spawn(alarm.raid_alert, raid))
 
             gevent.sleep(0)  # explict context yield
 
@@ -1067,15 +1051,6 @@ class Manager(object):
             }
 
         return gym_info
-
-    # Add gym details to an info object
-    def add_gym_details(self, info, gym_id):
-        gym_info = self.get_gym_details(gym_id)
-        info.update( {
-            "gym_name": gym_info['name'],
-            "gym_description": gym_info['description'],
-            "gym_url": gym_info['url']
-        })
 
     ####################################################################################################################
 
