@@ -717,12 +717,10 @@ class Manager(object):
 
     def process_gym(self, gym):
         gym_id = gym['id']
-        gym_id = gym['id']
 
-
-            # Update Gym details (if they exist)
-            if  self.__cache.in_gym_cache(gym['id']) is False or gym['name'] != 'unknown':
-                self.__cache.put_gym( gym['id'], gym)
+        # Update Gym details (if they exist)
+        if self.__cache.in_gym_cache(gym_id) is False or gym['name'] != 'unknown':
+            self.__cache.put_gym(gym_id, gym)
 
         if self.__gym_settings['enabled'] is False:
             log.debug("Gym ignored: notifications are disabled.")
@@ -797,9 +795,9 @@ class Manager(object):
         gym_info = self.get_gym_details(gym_id)
 
         gym.update({
-            "gym_name": self.__gym_info.get(gym_id, {}).get('name'),
-            "gym_description": self.__gym_info.get(gym_id, {}).get('description'),
-            "gym_url": self.__gym_info.get(gym_id, {}).get('url'),
+            "gym_name": gym_info.get('name'),
+            "gym_description": gym_info.get('description'),
+            "gym_url": gym_info.get('url'),
             "dist": get_dist_as_str(dist),
             'dir': get_cardinal_dir([lat, lng], self.__latlng),
             'new_team': cur_team,
@@ -862,7 +860,7 @@ class Manager(object):
         else:
             log.debug("Egg inside geofence was not checked because no geofences were set.")
 
-        # check if the level is in the filter range or if we are ignoring eggs
+        # Check if the level is in the filter range or if we are ignoring eggs
         passed = self.check_egg_filter(self.__egg_settings, egg)
 
         if not passed:
@@ -879,9 +877,9 @@ class Manager(object):
         gym_info = self.get_gym_details(gym_id)
 
         egg.update({
-            "gym_name": self.__gym_info.get(gym_id, {}).get('name'),
-            "gym_description": self.__gym_info.get(gym_id, {}).get('description'),
-            "gym_url": self.__gym_info.get(gym_id, {}).get('url'),
+            "gym_name": gym_info.get('name'),
+            "gym_description": gym_info.get('description'),
+            "gym_url": gym_info.get('url'),
             'time_left': time_str[0],
             '12h_time': time_str[1],
             '24h_time': time_str[2],
@@ -992,9 +990,9 @@ class Manager(object):
 
         raid.update({
             'pkmn': name,
-            "gym_name": self.__gym_info.get(gym_id, {}).get('name'),
-            "gym_description": self.__gym_info.get(gym_id, {}).get('description'),
-            "gym_url": self.__gym_info.get(gym_id, {}).get('url'),
+            "gym_name": gym_info.get('name'),
+            "gym_description": gym_info.get('description'),
+            "gym_url": gym_info.get('url'),
             'time_left': time_str[0],
             '12h_time': time_str[1],
             '24h_time': time_str[2],
