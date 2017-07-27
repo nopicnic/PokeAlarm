@@ -769,8 +769,6 @@ class Manager(object):
         else:
             log.debug("Gym inside geofences was not checked because no geofences were set.")
 
-        gym_info = self.__gym_info.get(gym_id, {})
-
         gym.update({
             "gym_name": self.__gym_info.get(gym_id, {}).get('name', 'unknown'),
             "gym_description": self.__gym_info.get(gym_id, {}).get('description', 'unknown'),
@@ -851,7 +849,6 @@ class Manager(object):
 
         time_str = get_time_as_str(egg['raid_end'], self.__timezone)
         start_time_str = get_time_as_str(egg['raid_begin'], self.__timezone)
-        gym_info = self.__gym_info.get(gym_id, {})
 
         egg.update({
             "gym_name": self.__gym_info.get(gym_id, {}).get('name', 'unknown'),
@@ -958,7 +955,6 @@ class Manager(object):
 
         time_str = get_time_as_str(raid['raid_end'], self.__timezone)
         start_time_str = get_time_as_str(raid['raid_begin'], self.__timezone)
-        gym_info = self.__gym_info.get(gym_id, {})
 
         raid.update({
             'pkmn': name,
