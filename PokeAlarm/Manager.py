@@ -43,6 +43,7 @@ class Manager(object):
         self.__units = units  # type of unit used for distances
         self.__timezone = timezone  # timezone for time calculations
         self.__time_limit = time_limit  # Minimum time remaining for stops and pokemon
+        self.__cp_ranges = {}
 
         # Set up the Location Specific Stuff
         self.__location = None  # Location should be [lat, lng] (or None for no location)
@@ -72,6 +73,12 @@ class Manager(object):
         # Initialize the queue and start the process
         self.__queue = multiprocessing.Queue()
         self.__process = None
+
+        # Update cp ranges
+        with open(get_path('data/cp_ranges.json'), 'r') as f:
+            cp_ranges = json.loads(f.read())
+            for pkmn_id, value in cp_ranges.iteritems():
+                self.__cp_ranges[int(pkmn_id)] = value
 
         log.info("----------- Manager '{}' successfully created.".format(self.__name))
 
@@ -790,6 +797,8 @@ class Manager(object):
         else:
             log.debug("Gym inside geofences was not checked because no geofences were set.")
 
+        gym_info = self.__gym_info.get(gym_id, {})
+
         gym.update({
             "gym_name": gym_info.get('name', 'unknown'),
             "gym_description": gym_info.get('description', 'unknown'),
@@ -1007,6 +1016,8 @@ class Manager(object):
             'form': self.__locale.get_form_name(pkmn_id, raid_pkmn['form_id']),
             'team_id': team_id,
             'team_name': self.__locale.get_team_name(team_id)
+            'min_cp': self.__cp_ranges.get(pkmn_id, {}).get('min-cp', '?'),
+            'max_cp': self.__cp_ranges.get(pkmn_id, {}).get('max-cp', '?')
         })
 
         threads = []
