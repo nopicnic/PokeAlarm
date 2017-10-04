@@ -44,7 +44,7 @@ class Manager(object):
 
         # Setup the language-specific stuff
         self.__locale = locale
-        self.__pokemon_name, self.__move_name, self.__team_name, self.__leader, = {}, {}, {}, {}
+        self.__pokemon_name, self.__move_name, self.__team_name, self.__leader, self.__cp_ranges = {}, {}, {}, {}, {}
         self.update_locales()
 
         self.__units = units  # type of unit used for distances
@@ -1010,7 +1010,9 @@ class Manager(object):
             "dist": get_dist_as_str(dist),
             'dir': get_cardinal_dir([lat, lng], self.__latlng),
             'quick_move': self.__move_name.get(quick_id, 'unknown'),
-            'charge_move': self.__move_name.get(charge_id, 'unknown')
+            'charge_move': self.__move_name.get(charge_id, 'unknown'),
+            'min_cp': self.__cp_ranges.get(pkmn_id, {}).get('min-cp', '?'),
+            'max_cp': self.__cp_ranges.get(pkmn_id, {}).get('max-cp', '?')
         })
 
         threads = []
@@ -1084,6 +1086,12 @@ class Manager(object):
             leaders = json.loads(f.read())
             for team_id, value in leaders.iteritems():
                 self.__leader[int(team_id)] = value
+
+        # Update cp ranges
+        with open(os.path.join(get_path('locales'), 'cp_ranges.json'), 'r') as f:
+            cp_ranges = json.loads(f.read())
+            for pkmn_id, value in cp_ranges.iteritems():
+                self.__cp_ranges[int(pkmn_id)] = value
 
 
     ####################################################################################################################
