@@ -8,6 +8,7 @@ import Queue
 import traceback
 import re
 import sys
+import os
 # 3rd Party Imports
 import gipc
 # Local Imports
@@ -81,6 +82,12 @@ class Manager(object):
         self.__process = None
 
         self.__killer = GracefulKiller()
+
+        # Update cp ranges
+        with open(get_path('data/cp_ranges.json'), 'r') as f:
+            cp_ranges = json.loads(f.read())
+            for pkmn_id, value in cp_ranges.iteritems():
+                self.__cp_ranges[int(pkmn_id)] = value
 
         log.info("----------- Manager '{}' successfully created.".format(self.__name))
 
@@ -275,12 +282,6 @@ class Manager(object):
         # Hush some new loggers
         logging.getLogger('requests').setLevel(logging.WARNING)
         logging.getLogger('urllib3').setLevel(logging.WARNING)
-
-        # Update cp ranges
-        with open(os.path.join(get_path('locales'), 'cp_ranges.json'), 'r') as f:
-            cp_ranges = json.loads(f.read())
-            for pkmn_id, value in cp_ranges.iteritems():
-                self.__cp_ranges[int(pkmn_id)] = value
 
         if config['DEBUG'] is True:
             logging.getLogger().setLevel(logging.DEBUG)
@@ -771,6 +772,7 @@ class Manager(object):
         if self.__gym_settings['ignore_neutral'] and to_team_id == 0:
             log.debug("Gym update ignored: changed to neutral")
             return
+
         # Update gym's last known team
         self.__gym_hist[gym_id] = to_team_id
 
