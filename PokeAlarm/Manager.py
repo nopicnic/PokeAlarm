@@ -82,12 +82,6 @@ class Manager(object):
 
         self.__killer = GracefulKiller()
 
-        # Update cp ranges
-        with open(get_path('data/cp_ranges.json'), 'r') as f:
-            cp_ranges = json.loads(f.read())
-            for pkmn_id, value in cp_ranges.iteritems():
-                self.__cp_ranges[int(pkmn_id)] = value
-
         log.info("----------- Manager '{}' successfully created.".format(self.__name))
 
     ############################################## CALLED BY MAIN PROCESS ##############################################
@@ -1053,7 +1047,7 @@ class Manager(object):
             'charge_move': self.__locale.get_move_name(charge_id),
             'form': self.__locale.get_form_name(pkmn_id, raid_pkmn['form_id']),
             'team_id': team_id,
-            'team_name': self.__locale.get_team_name(team_id)
+            'team_name': self.__locale.get_team_name(team_id),
             'min_cp': min_cp,
             'max_cp': max_cp
         })
