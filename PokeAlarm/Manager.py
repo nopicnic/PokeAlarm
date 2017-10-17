@@ -271,6 +271,7 @@ class Manager(object):
         config['API_KEY'] = self.__google_key
         config['UNITS'] = self.__units
         config['DEBUG'] = self.__debug
+        config['ROOT_PATH'] = os.path.abspath(os.path.dirname(__file__))
 
         # Hush some new loggers
         logging.getLogger('requests').setLevel(logging.WARNING)
