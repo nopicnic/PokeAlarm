@@ -7,6 +7,7 @@ import multiprocessing
 import traceback
 import re
 import sys
+import os
 # 3rd Party Imports
 import gipc
 # Local Imports
@@ -254,6 +255,7 @@ class Manager(object):
         config['API_KEY'] = self.__google_key
         config['UNITS'] = self.__units
         config['DEBUG'] = self.__debug
+        config['ROOT_PATH'] = os.path.abspath("{}/..".format(os.path.dirname(__file__)))
 
         # Hush some new loggers
         logging.getLogger('requests').setLevel(logging.WARNING)
@@ -1010,7 +1012,7 @@ class Manager(object):
             'charge_move': self.__locale.get_move_name(charge_id),
             'form': self.__locale.get_form_name(pkmn_id, raid_pkmn['form_id']),
             'team_id': team_id,
-            'team_name': self.__locale.get_team_name(team_id)
+            'team_name': self.__locale.get_team_name(team_id),
             'min_cp': min_cp,
             'max_cp': max_cp
         })
