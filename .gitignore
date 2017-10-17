@@ -6,4 +6,3 @@ env
 *.txt
 !data/*.json
 !locales/*.json
-/.pickles/

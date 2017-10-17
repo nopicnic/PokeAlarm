@@ -18,7 +18,7 @@ from Filters import load_pokemon_section, load_pokestop_section, load_gym_sectio
     load_raid_section
 from Locale import Locale
 from Utils import get_cardinal_dir, get_dist_as_str, get_earth_dist, get_path, get_time_as_str, \
-    require_and_remove_key, parse_boolean, contains_arg
+    require_and_remove_key, parse_boolean, contains_arg, get_pokemon_cp_range
 from Geofence import load_geofence_file
 from LocationServices import LocationService
 from GracefulKiller import GracefulKiller
@@ -43,7 +43,7 @@ class Manager(object):
         self.__loc_service = None
         if str(google_key) != 'none':
             self.__google_key = google_key
-            self.__loc_service = LocationService(google_key, locale, units, self.__cache)
+            self.__loc_service = LocationService(google_key, locale, units)
         else:
             log.warning("NO GOOGLE API KEY SET - Reverse Location and Distance Matrix DTS will NOT be detected.")
 
@@ -51,7 +51,6 @@ class Manager(object):
         self.__units = units  # type of unit used for distances
         self.__timezone = timezone  # timezone for time calculations
         self.__time_limit = time_limit  # Minimum time remaining for stops and pokemon
-        self.__cp_ranges = {}
 
         # Set up the Location Specific Stuff
         self.__location = None  # Location should be [lat, lng] (or None for no location)
@@ -756,13 +755,17 @@ class Manager(object):
             log.debug(u"Saving gym info for {}".format(gym['name']))
             self.__cache.gym_cache[gym_id] = gym
 
-        if self.__gym_settings['enabled'] is False:
-            log.debug("Gym ignored: notifications are disabled.")
-            return
-
         # Extract some basic information
         to_team_id = gym['new_team_id']
         from_team_id = self.__gym_hist.get(gym_id)
+
+        if from_team_id != to_team_id:
+            # Update gym's last known team
+            self.__gym_hist[gym_id] = to_team_id
+
+        if self.__gym_settings['enabled'] is False:
+            log.debug("Gym ignored: notifications are disabled.")
+            return
 
         # Doesn't look like anything to me
         if to_team_id == from_team_id:
@@ -911,6 +914,7 @@ class Manager(object):
 
         time_str = get_time_as_str(egg['raid_end'], self.__timezone)
         start_time_str = get_time_as_str(egg['raid_begin'], self.__timezone)
+
         gym_info = self.get_gym_details(gym_id)
 
         egg.update({
@@ -1024,7 +1028,13 @@ class Manager(object):
 
         time_str = get_time_as_str(raid['raid_end'], self.__timezone)
         start_time_str = get_time_as_str(raid['raid_begin'], self.__timezone)
+
         gym_info = self.get_gym_details(gym_id)
+        # Get the catchable cp range for a raid boss of level 20
+        min_cp, max_cp = get_pokemon_cp_range(pkmn_id, 20)
+
+        #team id saved in self.__gym_hist when processing gym
+        team_id = self.__gym_hist.get(gym_id, '?')
 
         raid.update({
             'pkmn': name,
@@ -1042,8 +1052,10 @@ class Manager(object):
             'quick_move': self.__locale.get_move_name(quick_id),
             'charge_move': self.__locale.get_move_name(charge_id),
             'form': self.__locale.get_form_name(pkmn_id, raid_pkmn['form_id']),
-            'min_cp': self.__cp_ranges.get(pkmn_id, {}).get('min-cp', '?'),
-            'max_cp': self.__cp_ranges.get(pkmn_id, {}).get('max-cp', '?')
+            'team_id': team_id,
+            'team_name': self.__locale.get_team_name(team_id)
+            'min_cp': min_cp,
+            'max_cp': max_cp
         })
 
         threads = []
