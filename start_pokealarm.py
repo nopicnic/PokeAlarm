@@ -149,10 +149,6 @@ def parse_settings(root_path):
                         help='Maximum number of attempts an alarm makes to send a notification.')
     parser.add_argument('-tz', '--timezone', type=str, action='append', default=[None],
                         help='Timezone used for notifications.  Ex: "America/Los_Angeles"')
-    parser.add_argument('-afc', '--use-adr-file-cache', action='store_true', default=False,
-                        help='Use geocode address file cache to save google lookup requests between runs')
-    parser.add_argument('-gfc', '--use-gym-file-cache', action='store_true', default=False,
-                        help='Use gym file cache to save gym information to file between runs')
 
     args = parser.parse_args()
 
