@@ -29,6 +29,7 @@ class Cache(object):
         self._gym_info = {}
         self._egg_hist = {}
         self._raid_hist = {}
+        self._adr_info = {}
 
     def get_pokemon_expiration(self, pkmn_id):
         """ Get the datetime that the pokemon expires."""
@@ -56,7 +57,7 @@ class Cache(object):
 
     def get_gym_info(self, gym_id):
         """ Gets the information about the gym. """
-        return self._gym_info.get(gym_id, self._default_gym_info)
+        return self._gym_info.get(gym_id, self.__default_gym_info)
 
     def update_gym_info(self, gym_id, name, desc, url):
         """ Updates the information about the gym. """
@@ -81,7 +82,7 @@ class Cache(object):
 
     def save(self):
         """ Export the data to a more permanent location. """
-        self._clean_hist()
+        self.__clean_hist()
         log.debug("Cache cleaned!")
 
     def __clean_hist(self):

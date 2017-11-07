@@ -34,8 +34,10 @@ class FileCache(Cache):
             self._pokestop_hist = data.get('pokestop_hist', {})
             self._gym_team = data.get('gym_team', {})
             self._gym_info = data.get('gym_info', {})
+            self._adr_info = data.get('adr_info', {})
             self._egg_hist = data.get('egg_hist', {})
             self._raid_hist = data.get('raid_hist', {})
+
             log.debug("LOADED: \n {}".format(data))
 
     def save(self):
@@ -46,11 +48,14 @@ class FileCache(Cache):
             'pokestop_hist': self._pokestop_hist,
             'gym_team': self._gym_team,
             'gym_info': self._gym_info,
+            'adr_info': self._adr_info,
             'egg_hist': self._egg_hist,
             'raid_hist': self._raid_hist
         }
-        log.debug(self._pokestop_hist)
-        log.debug("SAVED: {}".format(data))
+        if log.isEnabledFor(logging.DEBUG):
+            log.debug(self._pokestop_hist)
+            log.debug("SAVED: {}".format(data))
+
         try:
             with portalocker.Lock(self._file, timeout=5, mode="wb+") as f:
                 pickle.dump(data, f, protocol=pickle.HIGHEST_PROTOCOL)

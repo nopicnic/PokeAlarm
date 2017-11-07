@@ -27,7 +27,7 @@ log = logging.getLogger('Manager')
 
 class Manager(object):
     def __init__(self, name, google_key, locale, units, timezone, time_limit, max_attempts, location, quiet, cache_type,
-                 filter_file, geofence_file, alarm_file, debug, use_adr_file_cache, use_gym_file_cache):
+                 filter_file, geofence_file, alarm_file, debug):
         # Set the name of the Manager
         self.__name = str(name).lower()
         log.info("----------- Manager '{}' is being created.".format(self.__name))
@@ -77,8 +77,6 @@ class Manager(object):
         self.__queue = multiprocessing.Queue()
         self.__event = multiprocessing.Event()
         self.__process = None
-
-        self.__killer = GracefulKiller()
 
         log.info("----------- Manager '{}' successfully created.".format(self.__name))
 
@@ -295,9 +293,6 @@ class Manager(object):
         if config['DEBUG'] is True:
             logging.getLogger().setLevel(logging.DEBUG)
 
-        if self.__use_gym_file_cache or self.__use_adr_file_cache:
-            self.__cache.load()
-
         # Connect the alarms and send the start up message
         for alarm in self.__alarms:
             alarm.connect()
@@ -324,17 +319,12 @@ class Manager(object):
             # Clean out visited every 3 minutes
             if datetime.utcnow() - last_clean > timedelta(minutes=1):
                 log.debug("Cleaning cache...")
+                self.__cache._adr_info = self.__loc_service.__reverse_location_history
                 self.__cache.save()
                 last_clean = datetime.utcnow()
 
                 gevent.sleep(1)
                 continue
-
-            # Clean out visited every 3 minutes
-            if datetime.utcnow() - last_clean > timedelta(minutes=1):
-                log.debug("Cleaning cache...")
-                self.__cache.save()
-                last_clean = datetime.utcnow()
 
             try:
                 kind = obj['type']

@@ -140,7 +140,7 @@ def parse_settings(root_path):
     parser.add_argument('-u', '--units', type=parse_unicode, default=['imperial'], action='append',
                         choices=['metric', 'imperial'],
                         help='Specify either metric or imperial units to use for distance measurements. ')
-    parser.add_argument('-ct', '--cache_type', type=parse_unicode, action='append', default=['mem'],
+    parser.add_argument('-ct', '--cache_type', type=parse_unicode, action='append', default=['file'],
                         choices=cache_options,
                         help='Specify a Google API Key to use.')
     parser.add_argument('-tl', '--timelimit', type=int, default=[0], action='append',
@@ -210,9 +210,7 @@ def parse_settings(root_path):
             filter_file=args.filters[m_ct] if len(args.filters) > 1 else args.filters[0],
             geofence_file=args.geofences[m_ct] if len(args.geofences) > 1 else args.geofences[0],
             alarm_file=args.alarms[m_ct] if len(args.alarms) > 1 else args.alarms[0],
-            debug=config['DEBUG'],
-            use_adr_file_cache=args.use_adr_file_cache,
-            use_gym_file_cache=args.use_gym_file_cache
+            debug=config['DEBUG']
         )
         if m.get_name() not in managers:
             # Add the manager to the map
@@ -225,16 +223,15 @@ def parse_settings(root_path):
         managers[m_name].start()
 
     # Set up signal handlers for graceful exit
-    signal(signal.SIGINT, exit_gracefully)
-    signal(signal.SIGTERM, exit_gracefully)
+    signal.signal(signal.SIGINT, exit_gracefully)
+    signal.signal(signal.SIGTERM, exit_gracefully)
 
 
-def exit_gracefully():
+def exit_gracefully(one, two):
     log.info("PokeAlarm is closing down!")
     for m_name in managers:
         managers[m_name].stop()
-    for m_name in managers:
-        managers[m_name].join()
+
     log.info("PokeAlarm exited!")
     exit(0)
 
