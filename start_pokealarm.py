@@ -21,7 +21,6 @@ import pytz
 import Queue
 import json
 import os
-import signal
 import sys
 
 # 3rd Party Imports
@@ -142,7 +141,7 @@ def parse_settings(root_path):
     parser.add_argument('-u', '--units', type=parse_unicode, default=['imperial'], action='append',
                         choices=['metric', 'imperial'],
                         help='Specify either metric or imperial units to use for distance measurements. ')
-    parser.add_argument('-ct', '--cache_type', type=parse_unicode, action='append', default=['file'],
+    parser.add_argument('-ct', '--cache_type', type=parse_unicode, action='append', default=['mem'],
                         choices=cache_options,
                         help='Specify a Google API Key to use.')
     parser.add_argument('-tl', '--timelimit', type=int, default=[0], action='append',
@@ -221,15 +220,16 @@ def parse_settings(root_path):
         managers[m_name].start()
 
     # Set up signal handlers for graceful exit
-    signal.signal(signal.SIGINT, exit_gracefully)
-    signal.signal(signal.SIGTERM, exit_gracefully)
+    signal(signal.SIGINT, exit_gracefully)
+    signal(signal.SIGTERM, exit_gracefully)
 
 
-def exit_gracefully(one, two):
+def exit_gracefully():
     log.info("PokeAlarm is closing down!")
     for m_name in managers:
         managers[m_name].stop()
-
+    for m_name in managers:
+        managers[m_name].join()
     log.info("PokeAlarm exited!")
     exit(0)
 

@@ -37,11 +37,9 @@ class FileCache(Cache):
             self._adr_info = data.get('adr_info', {})
             self._egg_hist = data.get('egg_hist', {})
             self._raid_hist = data.get('raid_hist', {})
-
             log.debug("LOADED: \n {}".format(data))
 
-    def save(self):
-        super(FileCache,self).save()
+    def _save(self):
         """ Export the data to a more permanent location. """
         log.debug("Writing cache to file...")
         data = {
@@ -53,7 +51,7 @@ class FileCache(Cache):
             'egg_hist': self._egg_hist,
             'raid_hist': self._raid_hist
         }
-        if log.isEnabledFor(logging.DEBUG):
+
             log.debug(self._pokestop_hist)
             log.debug("SAVED: {}".format(data))
 

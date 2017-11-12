@@ -308,20 +308,19 @@ class Manager(object):
 
         while True:  # Run forever and ever
 
+            # Clean out visited every minute
+            if datetime.utcnow() - last_clean > timedelta(minutes=1):
+                log.debug("Cleaning cache...")
+                self.__cache.set_adr_info(self.__loc_service.get_location_history())
+                self.__cache.clean_and_save()
+                last_clean = datetime.utcnow()
+
             try:  # Get next object to process
-                obj = self.__queue.get(block=False, timeout=1000)
+                obj = self.__queue.get(block=False)
             except Queue.Empty:
                 # Check if the process should exit process
                 if self.__event.is_set():
                     break
-
-                # Clean out visited every minute
-                if datetime.utcnow() - last_clean > timedelta(minutes=1):
-                    log.debug("Cleaning cache...")
-                    self.__cache.set_adr_info(self.__loc_service.get_location_history())
-                    self.__cache.save()
-                    last_clean = datetime.utcnow()
-
                 # Give the process a little break to get some stuff in the queue
                 gevent.sleep(1)
                 continue
@@ -348,7 +347,7 @@ class Manager(object):
 
         # Save cache and exit
         self.__cache.set_adr_info(self.__loc_service.get_location_history())
-        self.__cache.save()
+        self.__cache.clean_and_save()
         exit(0)
 
     # Set the location of the Manager
@@ -625,10 +624,12 @@ class Manager(object):
         # Finally, add in all the extra crap we waited to calculate until now
         time_str = get_time_as_str(pkmn['disappear_time'], self.__timezone)
         iv = pkmn['iv']
-        form = self.__locale.get_form_name(pkmn_id, pkmn['form_id'])
+        form_id = pkmn['form_id']
+        form = self.__locale.get_form_name(pkmn_id, form_id)
 
         pkmn.update({
             'pkmn': name,
+            'pkmn_id_3': '{:03}'.format(pkmn_id),
             "dist": get_dist_as_str(dist) if dist != 'unkn' else 'unkn',
             'time_left': time_str[0],
             '12h_time': time_str[1],
@@ -639,6 +640,7 @@ class Manager(object):
             'iv_2': "{:.2f}".format(iv) if iv != '?' else '?',
             'quick_move': self.__locale.get_move_name(quick_id),
             'charge_move': self.__locale.get_move_name(charge_id),
+            'form_id_or_empty': '' if form_id == '?' else '{:03}'.format(form_id),
             'form': form,
             'form_or_empty': '' if form == 'unknown' else form
         })
@@ -761,7 +763,7 @@ class Manager(object):
             return
 
         # Ignore first time updates
-        if from_team_id is 'unknown':
+        if from_team_id is '?':
             log.debug("Gym update ignored: first time seeing this gym")
             return
 
@@ -848,12 +850,10 @@ class Manager(object):
 
         gym_id = egg['id']
 
-        raid_end = egg['raid_end']
-
         # Check if egg has been processed yet
         if self.__cache.get_egg_expiration(gym_id) is not None:
             if self.__quiet is False:
-                log.info("Raid {} ignored - previously processed.".format(gym_id))
+                log.info("Egg {} ignored - previously processed.".format(gym_id))
             return
 
         # Update egg hatch
@@ -1012,11 +1012,13 @@ class Manager(object):
         # team id saved in self.__gym_hist when processing gym
         team_id = self.__cache.get_gym_team(gym_id)
         gym_info = self.__cache.get_gym_info(gym_id)
-        form = self.__locale.get_form_name(pkmn_id, raid_pkmn['form_id'])
+        form_id = raid_pkmn['form_id']
+        form = self.__locale.get_form_name(pkmn_id, form_id)
         min_cp, max_cp = get_pokemon_cp_range(pkmn_id, 20)
 
         raid.update({
             'pkmn': name,
+            'pkmn_id_3': '{:03}'.format(pkmn_id),
             "gym_name": gym_info['name'],
             "gym_description": gym_info['description'],
             "gym_url": gym_info['url'],
@@ -1030,6 +1032,7 @@ class Manager(object):
             'dir': get_cardinal_dir([lat, lng], self.__location),
             'quick_move': self.__locale.get_move_name(quick_id),
             'charge_move': self.__locale.get_move_name(charge_id),
+            'form_id_or_empty': '' if form_id == '?' else '{:03}'.format(form_id),
             'form': form,
             'form_or_empty': '' if form == 'unknown' else form,
             'team_id': team_id,

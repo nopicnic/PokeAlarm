@@ -15,7 +15,7 @@ class Cache(object):
     been implemented correctly.
     """
 
-    __default_gym_info = {
+    _default_gym_info = {
         "name": "unknown",
         "description": "unknown",
         "url":  get_image_url('icons/gym_0.png')
@@ -61,7 +61,7 @@ class Cache(object):
 
     def get_gym_info(self, gym_id):
         """ Gets the information about the gym. """
-        return self._gym_info.get(gym_id, self.__default_gym_info)
+        return self._gym_info.get(gym_id, self._default_gym_info)
 
     def update_gym_info(self, gym_id, name, desc, url):
         """ Updates the information about the gym. """
@@ -69,7 +69,7 @@ class Cache(object):
             self._gym_info[gym_id] = {"name": name, "description": desc, "url": url}
 
     def get_egg_expiration(self, gym_id):
-        """ Get the datetime that the egg expires. """
+        """ Returns the datetime that the egg expires. """
         return self._egg_hist.get(gym_id)
 
     def update_egg_expiration(self, gym_id, expiration):
@@ -77,7 +77,7 @@ class Cache(object):
         self._egg_hist[gym_id] = expiration
 
     def get_raid_expiration(self, gym_id):
-        """ Get the datetime that the raid_ expires. """
+        """ Returns the datetime that the raid expires. """
         return self._raid_hist.get(gym_id)
 
     def update_raid_expiration(self, gym_id, expiration):
@@ -87,17 +87,20 @@ class Cache(object):
         # The raid is active, remove the egg status for this gym
         self._egg_hist.pop(gym_id, None)
 
-    def save(self):
-        """ Export the data to a more permanent location. """
-        self.__clean_hist()
-        log.debug("Cache cleaned!")
+    def clean_and_save(self):
+        """ Cleans the cache and saves the contents if capable. """
+        self._clean_hist()
+        self._save()
 
-    def __clean_hist(self):
+    def _save(self):
+        """ Export the data to a more permanent location. """
+        pass # Mem cache isn't backed up.
+
+    def _clean_hist(self):
         """ Clean expired objects to free up memory """
-        for dict_ in (self._pokemon_hist, self._pokestop_hist, self._egg_hist, self._raid_hist):
-            old = []
-            for id_ in dict_:  # Gather old events
-                if dict_[id_] < datetime.utcnow():
-                    old.append(id_)
-            for id_ in old:  # Remove gathered events
-                del dict_[id_]
+        for hist in (self._pokemon_hist, self._pokestop_hist, self._egg_hist, self._raid_hist):
+            now = datetime.utcnow()
+            for time, expiration in hist.items():
+                if expiration < now:
+                    del hist[time]
+        log.debug("Cache cleaned!")
