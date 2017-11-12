@@ -31,6 +31,10 @@ class Cache(object):
         self._raid_hist = {}
         self._adr_info = {}
 
+    def set_adr_info(self,adr_info):
+        self._adr_info = adr_info
+        log.debug("{}".format(adr_info));
+
     def get_pokemon_expiration(self, pkmn_id):
         """ Get the datetime that the pokemon expires."""
         return self._pokemon_hist.get(pkmn_id)
@@ -65,7 +69,7 @@ class Cache(object):
             self._gym_info[gym_id] = {"name": name, "description": desc, "url": url}
 
     def get_egg_expiration(self, gym_id):
-        """ Updates the datetime that the egg expires. """
+        """ Get the datetime that the egg expires. """
         return self._egg_hist.get(gym_id)
 
     def update_egg_expiration(self, gym_id, expiration):
@@ -73,12 +77,15 @@ class Cache(object):
         self._egg_hist[gym_id] = expiration
 
     def get_raid_expiration(self, gym_id):
-        """ Updates the datetime that the raid_ expires. """
-        self._raid_hist.get(gym_id)
+        """ Get the datetime that the raid_ expires. """
+        return self._raid_hist.get(gym_id)
 
     def update_raid_expiration(self, gym_id, expiration):
-        """ Updates the datetime that the egg expires. """
+        """ Updates the datetime that the raid expires. """
         self._raid_hist[gym_id] = expiration
+
+        # The raid is active, remove the egg status for this gym
+        self._egg_hist.pop(gym_id, None)
 
     def save(self):
         """ Export the data to a more permanent location. """

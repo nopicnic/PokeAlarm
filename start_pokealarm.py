@@ -2,6 +2,8 @@
 # -*- coding: utf-8 -*-
 
 # Monkey Patch to allow Gevent's Concurrency
+from time import strftime
+
 from gevent import monkey
 
 monkey.patch_all()

@@ -18,7 +18,6 @@ replace = Alarm.replace
 
 
 class DiscordAlarm(Alarm):
-
     _defaults = {
         'pokemon': {
             'username': "<pkmn>",
@@ -64,8 +63,16 @@ class DiscordAlarm(Alarm):
             'title': "Level <raid_level> Raid is available against <pkmn>!",
             'url': "<gmaps>",
             'body': "The raid is available until <24h_time> (<time_left>)."
+        },
+        "gym_colors": {
+            "?": "FFFFFF",
+            "0": "FFFFFF",
+            "1": "0000FF",
+            "2": "FF0000",
+            "3": "FFFF00"
         }
     }
+
 
     # Gather settings and create alarm
     def __init__(self, settings, max_attempts, static_map_key):
@@ -86,6 +93,8 @@ class DiscordAlarm(Alarm):
         self.__gym = self.create_alert_settings(settings.pop('gym', {}), self._defaults['gym'])
         self.__egg = self.create_alert_settings(settings.pop('egg', {}), self._defaults['egg'])
         self.__raid = self.create_alert_settings(settings.pop('raid', {}), self._defaults['raid'])
+
+        self.__gym_colors = settings.pop("gym_colors",self._defaults["gym_colors"])
 
         # Warn user about leftover parameters
         reject_leftover_parameters(settings, "'Alarm level in Discord alarm.")
@@ -140,8 +149,14 @@ class DiscordAlarm(Alarm):
                 'title': replace(alert['title'], info),
                 'url': replace(alert['url'], info),
                 'description': replace(alert['body'], info),
-                'thumbnail': {'url': replace(alert['icon_url'], info)}
+                'thumbnail': {'url': replace(alert['icon_url'], info)},
+
             }]
+            if 'team_id' in info:
+                log.debug("TEAM: {}".format(info['team_id']))
+
+                payload['embeds'][0]['color'] = int(self.__gym_colors["{}".format(info['team_id'])], 16)
+
             if alert['map'] is not None:
                 payload['embeds'][0]['image'] = {'url': replace(alert['map'], {'lat': info['lat'], 'lng': info['lng']})}
         args = {

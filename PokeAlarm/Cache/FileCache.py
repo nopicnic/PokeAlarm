@@ -28,7 +28,7 @@ class FileCache(Cache):
                 pickle.dump({}, f, protocol=pickle.HIGHEST_PROTOCOL)
 
     def _load(self):
-        with portalocker.Lock(self._file, mode="r") as f:
+        with portalocker.Lock(self._file, mode="rb") as f:
             data = pickle.load(f)
             self._pokemon_hist = data.get('pokemon_hist', {})
             self._pokestop_hist = data.get('pokestop_hist', {})
@@ -41,6 +41,7 @@ class FileCache(Cache):
             log.debug("LOADED: \n {}".format(data))
 
     def save(self):
+        super(FileCache,self).save()
         """ Export the data to a more permanent location. """
         log.debug("Writing cache to file...")
         data = {

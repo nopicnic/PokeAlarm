@@ -1,5 +1,7 @@
 # Standard Library Imports
 from datetime import datetime, timedelta
+from time import strftime
+
 import gevent
 import logging
 import json
@@ -30,6 +32,7 @@ class Manager(object):
                  filter_file, geofence_file, alarm_file, debug):
         # Set the name of the Manager
         self.__name = str(name).lower()
+
         log.info("----------- Manager '{}' is being created.".format(self.__name))
         self.__debug = debug
 
@@ -302,27 +305,24 @@ class Manager(object):
     def run(self):
         self.setup_in_process()
         last_clean = datetime.utcnow()
-        last_cache_save = datetime.utcnow()
 
         while True:  # Run forever and ever
 
             try:  # Get next object to process
-                obj = self.__queue.get(block=False)
+                obj = self.__queue.get(block=False, timeout=1000)
             except Queue.Empty:
                 # Check if the process should exit process
                 if self.__event.is_set():
                     break
+
+                # Clean out visited every minute
+                if datetime.utcnow() - last_clean > timedelta(minutes=1):
+                    log.debug("Cleaning cache...")
+                    self.__cache.set_adr_info(self.__loc_service.get_location_history())
+                    self.__cache.save()
+                    last_clean = datetime.utcnow()
+
                 # Give the process a little break to get some stuff in the queue
-                gevent.sleep(1)
-                continue
-
-            # Clean out visited every 3 minutes
-            if datetime.utcnow() - last_clean > timedelta(minutes=1):
-                log.debug("Cleaning cache...")
-                self.__cache._adr_info = self.__loc_service.__reverse_location_history
-                self.__cache.save()
-                last_clean = datetime.utcnow()
-
                 gevent.sleep(1)
                 continue
 
@@ -347,6 +347,7 @@ class Manager(object):
                 log.debug("Stack trace: \n {}".format(traceback.format_exc()))
 
         # Save cache and exit
+        self.__cache.set_adr_info(self.__loc_service.get_location_history())
         self.__cache.save()
         exit(0)
 
@@ -741,13 +742,13 @@ class Manager(object):
         to_team_id = gym['new_team_id']
         from_team_id = self.__cache.get_gym_team(gym_id)
 
+        # Update gym's last known team
+        self.__cache.update_gym_team(gym_id, to_team_id)
+
         # Ignore changes to neutral
         if self.__gym_settings['ignore_neutral'] and to_team_id == 0:
             log.debug("Gym update ignored: changed to neutral")
             return
-
-        # Update gym's last known team
-        self.__cache.update_gym_team(gym_id, to_team_id)
 
         # Check if notifications are on
         if self.__gym_settings['enabled'] is False:
@@ -856,7 +857,7 @@ class Manager(object):
             return
 
         # Update egg hatch
-        self.__cache.update_egg_expiration(gym_id, raid_end)
+        self.__cache.update_egg_expiration(gym_id, egg['raid_begin'])
 
         # don't alert about (nearly) hatched eggs
         seconds_left = (egg['raid_begin'] - datetime.utcnow()).total_seconds()
