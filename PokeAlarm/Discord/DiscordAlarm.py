@@ -73,7 +73,6 @@ class DiscordAlarm(Alarm):
         }
     }
 
-
     # Gather settings and create alarm
     def __init__(self, settings, max_attempts, static_map_key):
         # Required Parameters
@@ -152,10 +151,8 @@ class DiscordAlarm(Alarm):
                 'thumbnail': {'url': replace(alert['icon_url'], info)},
 
             }]
-            if 'team_id' in info:
-                log.debug("TEAM: {}".format(info['team_id']))
-
-                payload['embeds'][0]['color'] = int(self.__gym_colors["{}".format(info['team_id'])], 16)
+            if 'color' in info:
+                payload['embeds'][0]['color'] = info['color']
 
             if alert['map'] is not None:
                 payload['embeds'][0]['image'] = {'url': replace(alert['map'], {'lat': info['lat'], 'lng': info['lng']})}
@@ -168,6 +165,7 @@ class DiscordAlarm(Alarm):
     # Trigger an alert based on Pokemon info
     def pokemon_alert(self, pokemon_info):
         log.debug("Pokemon notification triggered.")
+        pokemon_info['color'] = self.get_color(pokemon_info.get('iv', '?'))
         self.send_alert(self.__pokemon, pokemon_info)
 
     # Trigger an alert based on Pokestop info
@@ -182,9 +180,11 @@ class DiscordAlarm(Alarm):
 
     # Trigger an alert when a raid egg has spawned (UPCOMING raid event)
     def raid_egg_alert(self, raid_info):
+        raid_info['color'] = int(self.__gym_colors["{}".format(raid_info.get('team_id'), '0')], 16)
         self.send_alert(self.__egg, raid_info)
 
     def raid_alert(self, raid_info):
+        raid_info['color'] = int(self.__gym_colors["{}".format(raid_info.get('team_id'), '0')], 16)
         self.send_alert(self.__raid, raid_info)
 
     # Send a payload to the webhook url
@@ -197,3 +197,40 @@ class DiscordAlarm(Alarm):
             log.debug("Discord response was {}".format(resp.content))
             raise requests.exceptions.RequestException(
                 "Response received {}, webhook not accepted.".format(resp.status_code))
+
+    # Returns color for discord embeds
+    @staticmethod
+    def get_color(color_id):
+        color_ = 0x4F545C
+
+        try:
+            if float(color_id) < 25:
+                color_ = 0x9d9d9d
+            elif float(color_id) < 50:
+                color_ = 0xffffff
+            elif float(color_id) < 82:
+                color_ = 0x1eff00
+            elif float(color_id) < 90:
+                color_ = 0x0070dd
+            elif float(color_id) < 100:
+                color_ = 0xa335ee
+            elif float(color_id) >= 100:
+                color_ = 0xff8000
+        except:
+            try:
+                if color_id == "?":
+                    color_ = 0x4F545C
+                elif color_id == "Valor":
+                    color_ = 0xFE0103
+                elif color_id == "Mystic":
+                    color_ = 0x1102FD
+                elif color_id == "Instinct":
+                    color_ = 0xF6F006
+                elif color_id[-1] == 's' or color_id[-1] == 'm':
+                    color_ = 0xff66ff
+                else:
+                    color_ = 0x4F545C
+            except:
+                color_ = 0x4F545C
+        return color_
+
