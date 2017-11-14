@@ -308,21 +308,21 @@ class Manager(object):
 
         while True:  # Run forever and ever
 
-            # Clean out visited every minute
-            if datetime.utcnow() - last_clean > timedelta(minutes=1):
+            # Clean out visited every 5 minutes
+            if datetime.utcnow() - last_clean > timedelta(minutes=5):
                 log.debug("Cleaning cache...")
                 self.__cache.set_adr_info(self.__loc_service.get_location_history())
                 self.__cache.clean_and_save()
                 last_clean = datetime.utcnow()
 
             try:  # Get next object to process
-                obj = self.__queue.get(block=False)
+                obj = self.__queue.get(block=True, timeout=5)
             except Queue.Empty:
                 # Check if the process should exit process
                 if self.__event.is_set():
                     break
-                # Give the process a little break to get some stuff in the queue
-                gevent.sleep(1)
+                # Explict context yield
+                gevent.sleep(0)
                 continue
 
             try:
@@ -344,7 +344,8 @@ class Manager(object):
             except Exception as e:
                 log.error("Encountered error during processing: {}: {}".format(type(e).__name__, e))
                 log.debug("Stack trace: \n {}".format(traceback.format_exc()))
-
+            # Explict context yield
+            gevent.sleep(0)
         # Save cache and exit
         self.__cache.set_adr_info(self.__loc_service.get_location_history())
         self.__cache.clean_and_save()

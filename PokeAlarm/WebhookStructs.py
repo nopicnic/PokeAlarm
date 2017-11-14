@@ -102,6 +102,10 @@ class RocketMap:
         if pkmn['pkmn_id'] == 129 and pkmn['size'] == 'big':
             pkmn['big_karp'] = 'big'
 
+        # Todo: Remove this when monocle get's it's own standard
+        if pkmn['form_id'] == 0:
+            pkmn['form_id'] = '?'
+
         return pkmn
 
     @staticmethod
@@ -136,8 +140,8 @@ class RocketMap:
             'lng': float(data['longitude']),
             'lat_5': "{:.5f}".format(float(data['latitude'])),
             'lng_5': "{:.5f}".format(float(data['longitude'])),
-            'name': check_for_none(str, data.get('name'), 'unknown'),
-            'description': check_for_none(str, data.get('description'), 'unknown'),
+            'name': check_for_none(str, data.get('name'), 'unknown').strip(),
+            'description': check_for_none(str, data.get('description'), 'unknown').strip(),
             'url': check_for_none(str, data.get('url'), 'unknown')
         }
         gym['gmaps'] = get_gmaps_link(gym['lat'], gym['lng'])
