@@ -71,6 +71,13 @@ class DiscordAlarm(Alarm):
             'title': "Level <raid_level> Raid is available against <pkmn>!",
             'url': "<gmaps>",
             'body': "The raid is available until <24h_time> (<time_left>)."
+        },
+        "gym_colors": {
+            "?": "FFFFFF",
+            "0": "FFFFFF",
+            "1": "0000FF",
+            "2": "FF0000",
+            "3": "FFFF00"
         }
     }
 
@@ -101,6 +108,8 @@ class DiscordAlarm(Alarm):
             settings.pop('egg', {}), self._defaults['egg'])
         self.__raid = self.create_alert_settings(
             settings.pop('raid', {}), self._defaults['raid'])
+
+        self.__gym_colors = settings.pop("gym_colors", self._defaults["gym_colors"])
 
         # Warn user about leftover parameters
         reject_leftover_parameters(settings, "'Alarm level in Discord alarm.")
@@ -161,6 +170,9 @@ class DiscordAlarm(Alarm):
                 'description': replace(alert['body'], info),
                 'thumbnail': {'url': replace(alert['icon_url'], info)}
             }]
+            if 'color' in info:
+                payload['embeds'][0]['color'] = info['color']
+
             if alert['map'] is not None:
                 coords = {
                     'lat': info['lat'],
@@ -179,6 +191,7 @@ class DiscordAlarm(Alarm):
     # Trigger an alert based on Pokemon info
     def pokemon_alert(self, pokemon_info):
         log.debug("Pokemon notification triggered.")
+        pokemon_info['color'] = self.get_color(pokemon_info.get('iv', '?'))
         self.send_alert(self.__pokemon, pokemon_info)
 
     # Trigger an alert based on Pokestop info
@@ -193,9 +206,11 @@ class DiscordAlarm(Alarm):
 
     # Trigger an alert when a raid egg has spawned (UPCOMING raid event)
     def raid_egg_alert(self, raid_info):
+        raid_info['color'] = int(self.__gym_colors["{}".format(raid_info.get('team_id'), '0')], 16)
         self.send_alert(self.__egg, raid_info)
 
     def raid_alert(self, raid_info):
+        raid_info['color'] = int(self.__gym_colors["{}".format(raid_info.get('team_id'), '0')], 16)
         self.send_alert(self.__raid, raid_info)
 
     # Send a payload to the webhook url
@@ -208,5 +223,41 @@ class DiscordAlarm(Alarm):
         else:
             log.debug("Discord response was {}".format(resp.content))
             raise requests.exceptions.RequestException(
-                "Response received {}, webhook not accepted.".format(
-                    resp.status_code))
+                "Response received {}, webhook not accepted.".format(resp.status_code))
+
+    # Returns color for discord embeds
+    @staticmethod
+    def get_color(color_id):
+        color_ = 0x4F545C
+
+        try:
+            if float(color_id) < 25:
+                color_ = 0x9d9d9d
+            elif float(color_id) < 50:
+                color_ = 0xffffff
+            elif float(color_id) < 82:
+                color_ = 0x1eff00
+            elif float(color_id) < 90:
+                color_ = 0x0070dd
+            elif float(color_id) < 100:
+                color_ = 0xa335ee
+            elif float(color_id) >= 100:
+                color_ = 0xff8000
+        except:
+            try:
+                if color_id == "?":
+                    color_ = 0x4F545C
+                elif color_id == "Valor":
+                    color_ = 0xFE0103
+                elif color_id == "Mystic":
+                    color_ = 0x1102FD
+                elif color_id == "Instinct":
+                    color_ = 0xF6F006
+                elif color_id[-1] == 's' or color_id[-1] == 'm':
+                    color_ = 0xff66ff
+                else:
+                    color_ = 0x4F545C
+            except:
+                color_ = 0x4F545C
+        return color_
+
