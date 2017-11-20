@@ -49,8 +49,10 @@ class FileCache(Cache):
             'egg_hist': self._egg_hist,
             'raid_hist': self._raid_hist
         }
-        log.debug(self._pokestop_hist)
-        log.debug("SAVED: {}".format(data))
+
+        if log.isEnabledFor(logging.DEBUG):
+            log.debug(self._pokestop_hist)
+            log.debug("SAVED: {}".format(data))
         try:
             with portalocker.Lock(self._file, timeout=5, mode="wb+") as f:
                 pickle.dump(data, f, protocol=pickle.HIGHEST_PROTOCOL)
