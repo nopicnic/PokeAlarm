@@ -34,6 +34,9 @@ class LocationService(object):
     def get_location_history(self):
         return self.__reverse_location_history
 
+    def set_location_history(self, loc_history):
+        self.__reverse_location_history = loc_history
+
     # Add any API-dependant DTS as required
     def add_optional_arguments(self, origin, dest, dict):
         if self.__reverse_location:

@@ -62,6 +62,8 @@ class Manager(object):
 
         # Create cache
         self.__cache = cache_factory(cache_type, self.__name)
+        if self.__loc_service is not None:
+            self.__loc_service.set_location_history(self.__cache.get_adr_info())
 
         # Load and Setup the Pokemon Filters
         self.__pokemon_settings, self.__pokestop_settings, self.__gym_settings = {}, {}, {}

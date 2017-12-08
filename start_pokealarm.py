@@ -42,7 +42,7 @@ log = logging.getLogger('Server')
 
 # Global Variables
 app = Flask(__name__)
-server = None
+#server = None
 data_queue = Queue.Queue()
 managers = {}
 
@@ -105,6 +105,7 @@ def start_server():
 
     # Start up Server
     log.info("PokeAlarm is listening for webhooks on: http://{}:{}".format(config['HOST'], config['PORT']))
+    global server
     server = wsgi.WSGIServer((config['HOST'], config['PORT']), app, log=logging.getLogger('pyswgi'))
     server.serve_forever()
 
@@ -225,7 +226,9 @@ def parse_settings(root_path):
 
 
 def exit_gracefully():
-    log.info("PokeAlarm is closing down!")
+    server.stop(timeout=10)
+
+    log.info("PokeAlarm is closing down! {}".format(server))
     for m_name in managers:
         managers[m_name].stop()
     for m_name in managers:

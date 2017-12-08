@@ -31,7 +31,10 @@ class Cache(object):
         self._raid_hist = {}
         self._adr_info = {}
 
-    def set_adr_info(self,adr_info):
+    def get_adr_info(self,):
+        return self._adr_info
+
+    def set_adr_info(self, adr_info):
         self._adr_info = adr_info
         log.debug("{}".format(adr_info));
 
