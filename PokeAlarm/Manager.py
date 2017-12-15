@@ -1167,6 +1167,7 @@ class Manager(object):
         form_id = raid_pkmn['form_id']
         form = self.__locale.get_form_name(pkmn_id, form_id)
         min_cp, max_cp = get_pokemon_cp_range(pkmn_id, 20)
+        w_min_cp, w_max_cp = get_pokemon_cp_range(pkmn_id, 25)
 
         raid.update({
             'pkmn': name,
@@ -1192,7 +1193,9 @@ class Manager(object):
             'team_name': self.__locale.get_team_name(team_id),
             'team_leader': self.__locale.get_leader_name(team_id),
             'min_cp': min_cp,
-            'max_cp': max_cp
+            'max_cp': max_cp,
+            'w_min_cp': w_min_cp,
+            'w_max_cp': w_max_cp
         })
 
         threads = []
