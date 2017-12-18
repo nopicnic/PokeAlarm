@@ -1020,8 +1020,7 @@ class Manager(object):
                 self.__location, [lat, lng], egg)
 
         if self.__quiet is False:
-            log.info("Egg ({})  notification has been "
-                     "triggered!").format(gym_id)
+            log.info("Egg ({})  notification has been triggered!".format(gym_id))
 
         time_str = get_time_as_str(egg['raid_end'], self.__timezone)
         start_time_str = get_time_as_str(egg['raid_begin'], self.__timezone)
